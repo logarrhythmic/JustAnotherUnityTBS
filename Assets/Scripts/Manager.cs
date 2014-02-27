@@ -6,6 +6,9 @@ using System.Collections.Generic;
 
 public class Manager : Photon.MonoBehaviour
 {
+    // player stats
+    public int science, gold, happiness, goldenage, culture; 
+
     public GameObject tileObject;
     public Tile[,] tiles;
     public float tileGap, rowGap, tileWidth;
@@ -41,6 +44,11 @@ public class Manager : Photon.MonoBehaviour
                         photonView.RPC("Ready", PhotonNetwork.masterClient, PhotonNetwork.player);
                 break;
             case "game":
+                GUI.Box(new Rect(0,0,1280,40),"");
+                GUILayout.BeginArea(new Rect(0,0,1280,32));
+                GUILayout.BeginVertical();
+                GUILayout.EndVertical();
+                GUILayout.EndArea();
                 break;
             case "generating":
                 break;
@@ -94,6 +102,14 @@ public class Manager : Photon.MonoBehaviour
                 if (x + 1 <= tiles.GetLength(0)-1)
                 {
                     tiles[x, y].neighbours.Add(tiles[x+1,y]);
+                }
+                if(y-1 >= tiles.GetLength(1)-1 && x-1 >= 0)
+                {
+                    tiles[x,y].neighbours.Add(tiles[y-1,x-1]);
+                }
+                if (y - 1 >= tiles.GetLength(1)-1)
+                {
+                    tiles[x, y].neighbours.Add(tiles[y - 1, x]);
                 }
             }
         }
