@@ -23,4 +23,5 @@ MonoBehaviour:
   - LoadLevel
   - Ready
   - Level
+  - CallLevel
   DisableAutoOpenWizard: 0

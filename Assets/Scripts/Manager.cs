@@ -5,19 +5,19 @@ using System.Collections.Generic;
 
 public class Manager : Photon.MonoBehaviour
 {
-    public GameObject tile;
+    public GameObject tileObject;
     public int tileGap, rowGap, tileWidth;
     public bool ready = false;
     public float resoWidth = 1280, resoHeight = 720;
     public string gamestate = "connecting", guistate = "connecting";
     public int levelWidth = 50, levelHeight = 50;
-    public List<PhotonPlayer> players;
+    public List<PhotonPlayer> readPlayers;
 
     void Start()
     {
         Application.runInBackground = true;
         PhotonNetwork.ConnectUsingSettings("1.0");
-        players = new List<PhotonPlayer>();
+        readPlayers = new List<PhotonPlayer>();
     }
 
     void OnGUI()
@@ -32,7 +32,7 @@ public class Manager : Photon.MonoBehaviour
             case "readycheck":
                 if (GUILayout.Button("Ready"))
                     if (PhotonNetwork.isMasterClient)
-                        players.Add(PhotonNetwork.player);
+                        readPlayers.Add(PhotonNetwork.player);
                     else
                         photonView.RPC("Ready", PhotonNetwork.masterClient, PhotonNetwork.player);
                 break;
@@ -44,7 +44,7 @@ public class Manager : Photon.MonoBehaviour
 
     void Update()
     {
-        if (players.Count == PhotonNetwork.playerList.Length && gamestate == "start")
+        if (readPlayers.Count == PhotonNetwork.playerList.Length && gamestate == "start")
         {
             gamestate = "generating";
             guistate = "generating";
@@ -53,12 +53,12 @@ public class Manager : Photon.MonoBehaviour
             {
                 string[] newdata = new string[levelWidth];
                 Array.Copy(data, i * levelWidth, newdata, 0, levelWidth);
-                photonView.RPC("Level",PhotonTargets.All, newdata);
+                photonView.RPC("CallLevel", PhotonTargets.All, newdata);
             }
             gamestate = "game";
             guistate = "game";
         }
-    }
+    }   
 
     string[] Generate(int width, int height)
     {
@@ -66,8 +66,7 @@ public class Manager : Photon.MonoBehaviour
         string[] leveldata = new string[count];
         for (int i = 0; i < count; i++)
         {
-            GameObject go = (GameObject)Instantiate(tile, new Vector3(i % width * tileWidth + (i / width) % 2 * rowGap, 0, i / height * tileWidth + tileGap), Quaternion.identity);
-            Tile t = go.GetComponent<Tile>();
+            Tile t = new Tile();
             t.x = i % width;
             t.y = i / width;
             leveldata[i] = "x:" + t.x + ":y:" + t.y + ":gold:" + t.gold + ":production:" + t.production + ":tourism:" + t.tourism + ":faith:" + t.faith + ":science:" + t.science + ":culture:" + t.culture + ":food:" + t.food;
@@ -110,12 +109,16 @@ public class Manager : Photon.MonoBehaviour
     }
 
     [RPC]
-    void Level(string[] level)
+    void CallLevel(string[] level)
     {
-        Debug.Log(level.Length);
+        StartCoroutine("Level", level);
+    }
+
+    IEnumerator Level(string[] level)
+    {
         for (int i = 0; i < level.Length; i++)
         {
-            GameObject go = Resources.Load("tile") as GameObject;
+            GameObject go = Instantiate(Resources.Load("tile"), Vector3.zero, Quaternion.identity) as GameObject;
             Tile t = go.GetComponent<Tile>();
             string[] data = level[i].Split(':');
             for (int j = 0; j < data.Length; j++)
@@ -124,50 +127,44 @@ public class Manager : Photon.MonoBehaviour
                 {
                     case "x":
                         t.x = int.Parse(data[j + 1]);
-                        j += 2;
                         break;
                     case "y":
                         t.y = int.Parse(data[j + 1]);
-                        j += 2;
                         break;
                     case "gold":
                         t.gold = int.Parse(data[j + 1]);
-                        j += 2;
                         break;
                     case "production":
                         t.production = int.Parse(data[j + 1]);
-                        j += 2;
                         break;
                     case "food":
                         t.food = int.Parse(data[j + 1]);
-                        j += 2;
                         break;
                     case "science":
                         t.science = int.Parse(data[j + 1]);
-                        j += 2;
                         break;
                     case "faith":
                         t.faith = int.Parse(data[j + 1]);
-                        j += 2;
                         break;
                     case "tourism":
                         t.tourism = int.Parse(data[j + 1]);
-                        j += 2;
                         break;
                     default:
                         break;
                 }
             }
-            go.transform.position = new Vector3(tileWidth * t.x + tileGap * t.x, 0, tileWidth * t.y + tileGap * t.y + t.y % 2 * rowGap);
+            go.transform.position = new Vector3(tileWidth * t.x + rowGap * t.y % 2, 0, tileWidth * t.y);
+            if (i % 10 == 0)
+                yield return null;
         }
     }
 
     [RPC]
     void Ready(PhotonPlayer player)
     {
-        if (players.Contains(player))
-            players.Remove(player);
+        if (readPlayers.Contains(player))
+            readPlayers.Remove(player);
         else
-            players.Add(player);
+            readPlayers.Add(player);
     }
 }
