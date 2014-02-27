@@ -24,4 +24,5 @@ MonoBehaviour:
   - Ready
   - Level
   - CallLevel
+  - GetChunkAmount
   DisableAutoOpenWizard: 0

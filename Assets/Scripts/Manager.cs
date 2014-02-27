@@ -1,17 +1,21 @@
 ﻿using UnityEngine;
 using System;
+using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 
 public class Manager : Photon.MonoBehaviour
 {
     public GameObject tileObject;
-    public int tileGap, rowGap, tileWidth;
+    public Tile[,] tiles;
+    public float tileGap, rowGap, tileWidth;
     public bool ready = false;
     public float resoWidth = 1280, resoHeight = 720;
     public string gamestate = "connecting", guistate = "connecting";
     public int levelWidth = 50, levelHeight = 50;
     public List<PhotonPlayer> readPlayers;
+
+    int pendingChunks = 0;
 
     void Start()
     {
@@ -36,6 +40,10 @@ public class Manager : Photon.MonoBehaviour
                     else
                         photonView.RPC("Ready", PhotonNetwork.masterClient, PhotonNetwork.player);
                 break;
+            case "game":
+                break;
+            case "generating":
+                break;
             default:
                 GUI.Label(new Rect(600, 700, 80, 20), "Loading....");
                 break;
@@ -49,16 +57,48 @@ public class Manager : Photon.MonoBehaviour
             gamestate = "generating";
             guistate = "generating";
             string[] data = Generate(levelWidth, levelHeight);
+            photonView.RPC("GetChunkAmount", PhotonTargets.All, levelWidth, levelHeight);
             for (int i = 0; i < levelHeight; i++)
             {
                 string[] newdata = new string[levelWidth];
                 Array.Copy(data, i * levelWidth, newdata, 0, levelWidth);
                 photonView.RPC("CallLevel", PhotonTargets.All, newdata);
             }
-            gamestate = "game";
+        }
+        if (gamestate == "generating" && pendingChunks == 0)
+        {
+            StartCoroutine("Neighbours");
+            gamestate = "waitingstart";
             guistate = "game";
         }
-    }   
+    }
+
+    IEnumerator Neighbours()
+    {
+        for (int y = 0; y < tiles.GetLength(1); y++)
+        {
+            for (int x = 0; x < tiles.GetLength(0); x++)
+            {
+                if (x - 1 >= 0 && y-1 >= 0)
+                {
+                    tiles[x,y].neighbours.Add(tiles[x-1,y-1]);
+                }
+                if (y-1 >= 0)
+                {
+                    tiles[x,y].neighbours.Add(tiles[x,y-1]);
+                }
+                if(x-1 >= 0)
+                {
+                    tiles[x, y].neighbours.Add(tiles[x-1,y]);
+                }
+                if (x + 1 <= tiles.GetLength(0)-1)
+                {
+                    tiles[x, y].neighbours.Add(tiles[x+1,y]);
+                }
+            }
+        }
+        yield return null;
+    }
 
     string[] Generate(int width, int height)
     {
@@ -72,6 +112,15 @@ public class Manager : Photon.MonoBehaviour
             leveldata[i] = "x:" + t.x + ":y:" + t.y + ":gold:" + t.gold + ":production:" + t.production + ":tourism:" + t.tourism + ":faith:" + t.faith + ":science:" + t.science + ":culture:" + t.culture + ":food:" + t.food;
         }
         return leveldata;
+    }
+
+    [RPC]
+    void GetChunkAmount(int width, int height)
+    {
+        pendingChunks = height;
+        tiles = new Tile[levelWidth, levelHeight];
+        gamestate = "generating";
+        guistate = "generating";
     }
 
     void OnJoinedLobby()
@@ -153,10 +202,12 @@ public class Manager : Photon.MonoBehaviour
                         break;
                 }
             }
+            tiles[t.x, t.y] = t;
             go.transform.position = new Vector3(tileWidth * t.x + rowGap * t.y % 2, 0, tileWidth * t.y);
             if (i % 10 == 0)
                 yield return null;
         }
+        pendingChunks--;
     }
 
     [RPC]

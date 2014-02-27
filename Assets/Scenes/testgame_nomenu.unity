@@ -250,7 +250,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   tileObject: {fileID: 0}
-  tileGap: 1
+  tileGap: .100000001
   rowGap: 1
   tileWidth: 2
   ready: 0
