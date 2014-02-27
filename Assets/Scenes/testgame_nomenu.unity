@@ -187,8 +187,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 62f90b06e4cd4ea4a8a9479ef9840bac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  tiles: []
-  tileObjects: []
   tile: {fileID: 100000, guid: 616054ea738d41b44a70a57698e8420a, type: 2}
   tileGap: 1
   rowGap: 1

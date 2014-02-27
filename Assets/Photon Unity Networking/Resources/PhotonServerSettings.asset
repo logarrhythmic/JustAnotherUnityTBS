@@ -22,4 +22,5 @@ MonoBehaviour:
   - DestroyRpc
   - LoadLevel
   - Ready
+  - Level
   DisableAutoOpenWizard: 0
