@@ -10,7 +10,6 @@ public class Manager : Photon.MonoBehaviour
     public int science, gold, happiness, goldenage, culture;
     public enum civilization { Greeks, Egyptians };
 
-    public GameObject tileObject;
     public Tile[,] tiles;
     public float tileGap, rowGap, tileWidth;
     public bool ready = false;
@@ -20,12 +19,18 @@ public class Manager : Photon.MonoBehaviour
     public List<PhotonPlayer> readPlayers;
 
     int pendingChunks = 0;
+    Vector2 spawnCoordinates;
+    List<Tile> spawns = new List<Tile>();
+    GameObject levelGeometry;
 
     void Start()
     {
         Application.runInBackground = true;
         PhotonNetwork.ConnectUsingSettings("1.0");
         readPlayers = new List<PhotonPlayer>();
+        spawnCoordinates = new Vector2();
+        levelGeometry = new GameObject("levelGeometry");
+        levelGeometry.transform.position = Vector3.zero;
     }
 
     void OnGUI()
@@ -85,76 +90,80 @@ public class Manager : Photon.MonoBehaviour
 
     void Update()
     {
-        if (readPlayers.Count == PhotonNetwork.playerList.Length && gamestate == "start")
+        switch (gamestate)
         {
-            gamestate = "generating";
-            guistate = "generating";
-            string[] data = Generate(levelWidth, levelHeight);
-            photonView.RPC("GetChunkAmount", PhotonTargets.All, levelWidth, levelHeight);
-            for (int i = 0; i < levelHeight; i++)
-            {
-                string[] newdata = new string[levelWidth];
-                Array.Copy(data, i * levelWidth, newdata, 0, levelWidth);
-                photonView.RPC("CallLevel", PhotonTargets.All, newdata);
-            }
-            StartCoroutine("RandomSpawns");
-        }
-        if (gamestate == "generating" && pendingChunks == 0)
-        {
-            StartCoroutine("Neighbours");
-            gamestate = "waitingstart";
-            guistate = "game";
+            case "start":
+                if (readPlayers.Count == PhotonNetwork.playerList.Length)
+                {
+                    gamestate = "generating";
+                    guistate = "generating";
+                    string[] data = Generate(levelWidth, levelHeight);
+                    photonView.RPC("GetChunkAmount", PhotonTargets.All, levelWidth, levelHeight);
+                    for (int i = 0; i < levelHeight; i++)
+                    {
+                        string[] newdata = new string[levelWidth];
+                        Array.Copy(data, i * levelWidth, newdata, 0, levelWidth);
+                        photonView.RPC("CallLevel", PhotonTargets.All, newdata);
+                    }
+                    StartCoroutine("RandomSpawns");
+                }
+                break;
+            case "generating":
+                if (gamestate == "generating" && pendingChunks == 0)
+                {
+                    StartCoroutine("Neighbours");
+                    PhotonNetwork.Instantiate("Settler", tiles[(int)spawnCoordinates.x, (int)spawnCoordinates.y].gameObject.transform.position, Quaternion.identity, 0);
+                    gamestate = "waitingstart";
+                    guistate = "game";
+                }
+                break;
         }
     }
 
     IEnumerator RandomSpawns()
     {
-        List<Tile> spawns = new List<Tile>();
-
         while (true)
         {
-            foreach (PhotonPlayer player in PhotonNetwork.playerList)
+            if (pendingChunks == 0 && gamestate != "generating")
             {
-                while (true)
+                foreach (PhotonPlayer player in PhotonNetwork.playerList)
                 {
-                    int x = UnityEngine.Random.Range(0, levelWidth - 1);
-                    int y = UnityEngine.Random.Range(0, levelHeight - 1);
-                    if (!spawns.Contains(tiles[x, y]))
+                    while (true)
                     {
-                        spawns.Add(tiles[x, y]);
-                        break;
+                        int x = UnityEngine.Random.Range(0, levelWidth - 1);
+                        int y = UnityEngine.Random.Range(0, levelHeight - 1);
+                        if (!spawns.Contains(tiles[x, y]))
+                        {
+                            spawns.Add(tiles[x, y]);
+                            break;
+                        }
                     }
                 }
-            }
-            int count = 0;
-            foreach (Tile tile in spawns)
-            {
-                foreach (Tile anothertile in spawns)
+                int count = 0;
+                foreach (Tile tile in spawns)
                 {
-                    if (Vector2.Distance(new Vector2(tile.x, tile.y), new Vector2(anothertile.x, anothertile.y)) >= tileWidth / 10)
-                        count++;
+                    foreach (Tile anothertile in spawns)
+                    {
+                        if (Vector2.Distance(new Vector2(tile.x, tile.y), new Vector2(anothertile.x, anothertile.y)) >= levelWidth / 10)
+                            count++;
+                    }
                 }
+                if (count == spawns.Count)
+                    break;
+                yield return null;
             }
-            if (count == spawns.Count)
-                break;
+            for (int i = 0; i < PhotonNetwork.playerList.Length - 1; i++)
+            {
+                photonView.RPC("GetSpawn", PhotonNetwork.playerList[i], new Vector2(spawns[i].x, spawns[i].y));
+            }
             yield return null;
         }
     }
 
     [RPC]
-
-    void GetSpawn(int x, int y)
+    void GetSpawn(Vector2 spawn)
     {
-        StartCoroutine("WaitForChunks",new int[]{x,y});
-    }
-
-    IEnumerator WaitForChunks(int[] coordinates)
-    {
-        while (true)
-        {
-
-            yield return null;
-        }
+        spawnCoordinates = spawn;
     }
 
     IEnumerator Neighbours()
@@ -230,10 +239,6 @@ public class Manager : Photon.MonoBehaviour
     {
         gamestate = "start";
         guistate = "readycheck";
-        if (PhotonNetwork.isMasterClient)
-        {
-
-        }
     }
 
     void OnPhotonPlayerConnected(PhotonPlayer player)
@@ -296,6 +301,7 @@ public class Manager : Photon.MonoBehaviour
             }
             tiles[t.x, t.y] = t;
             go.transform.position = new Vector3(tileWidth * t.x + rowGap * t.y % 2, 0, tileWidth * t.y);
+            go.transform.parent = levelGeometry.transform;
             if (i % 10 == 0)
                 yield return null;
         }
