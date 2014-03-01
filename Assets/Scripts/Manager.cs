@@ -76,12 +76,8 @@ public class Manager : Photon.MonoBehaviour
                 GUI.Box(new Rect(640, 40, 640, 600), "Game information");
                 GUI.Box(new Rect(640, 640, 640, 80), "");
                 GUILayout.BeginArea(new Rect(640,640,640,80));
-                if (readPlayers.Contains(PhotonNetwork.player))
-                    if (GUILayout.Button("Not ready!"))
-                        photonView.RPC("Ready", PhotonNetwork.player);
-                else
-                    if(GUILayout.Button("Ready!"))
-                        photonView.RPC("Ready", PhotonNetwork.player);
+                if (GUILayout.Button("Ready", GUILayout.Width(640), GUILayout.Height(80)))
+                    photonView.RPC("PlayerReadyChange", PhotonTargets.All, PhotonNetwork.player);
                 GUILayout.EndArea();
                 break;
             case "game":
@@ -320,7 +316,7 @@ public class Manager : Photon.MonoBehaviour
     }
 
     [RPC]
-    void Ready(PhotonPlayer player)
+    void PlayerReadyChange(PhotonPlayer player)
     {
         if (readPlayers.Contains(player))
             readPlayers.Remove(player);
