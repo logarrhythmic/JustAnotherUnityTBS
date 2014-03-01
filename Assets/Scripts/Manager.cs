@@ -23,6 +23,7 @@ public class Manager : Photon.MonoBehaviour
     List<Tile> spawns = new List<Tile>();
     GameObject levelGeometry;
     List<Unit> units;
+    Texture2D hostIcon;
 
     void Start()
     {
@@ -33,6 +34,7 @@ public class Manager : Photon.MonoBehaviour
         levelGeometry = new GameObject("levelGeometry");
         levelGeometry.transform.position = Vector3.zero;
         units = new List<Unit>();
+        hostIcon = Resources.Load("Images/host") as Texture2D ;
     }
 
     void OnGUI()
@@ -51,7 +53,10 @@ public class Manager : Photon.MonoBehaviour
                 foreach (PhotonPlayer player in PhotonNetwork.playerList)
                 {
                     GUILayout.BeginHorizontal();
-                    GUILayout.Space(20);
+                    if (player.isMasterClient)
+                        GUILayout.Box(hostIcon, GUILayout.Width(20), GUILayout.Height(20));
+                    else
+                        GUILayout.Space(20);
                     if (player == PhotonNetwork.player)
                     {
                         string str = player.name;
