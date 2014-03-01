@@ -75,9 +75,17 @@ public class Manager : Photon.MonoBehaviour
                 GUI.Box(new Rect(0, 420, 640, 300), "");
                 GUI.Box(new Rect(640, 40, 640, 600), "Game information");
                 GUI.Box(new Rect(640, 640, 640, 80), "");
-                GUILayout.BeginArea(new Rect(640,640,640,80));
-                if (GUILayout.Button("Ready", GUILayout.Width(640), GUILayout.Height(80)))
-                    photonView.RPC("PlayerReadyChange", PhotonTargets.All, PhotonNetwork.player);
+                GUILayout.BeginArea(new Rect(640, 640, 640, 80));
+                if (readPlayers.Contains(PhotonNetwork.player))
+                {
+                    if (GUILayout.Button("Not ready!", GUILayout.Width(640), GUILayout.Height(80)))
+                    {
+                        photonView.RPC("PlayerReadyChange", PhotonTargets.All, PhotonNetwork.player);
+                    }
+                }
+                else
+                    if (GUILayout.Button("Ready!", GUILayout.Width(640), GUILayout.Height(80)))
+                        photonView.RPC("PlayerReadyChange", PhotonTargets.All, PhotonNetwork.player);
                 GUILayout.EndArea();
                 break;
             case "game":
@@ -119,10 +127,12 @@ public class Manager : Photon.MonoBehaviour
                 if (gamestate == "generating" && pendingChunks == 0)
                 {
                     StartCoroutine("Neighbours");
-                    PhotonNetwork.Instantiate("Settler", tiles[(int)spawnCoordinates.x, (int)spawnCoordinates.y].gameObject.transform.position, Quaternion.identity, 0);
-                    gamestate = "waitingstart";
                     guistate = "game";
                 }
+                break;
+            case "spawn":
+                PhotonNetwork.Instantiate("Settler", tiles[(int)spawnCoordinates.x, (int)spawnCoordinates.y].gameObject.transform.position, Quaternion.identity, 0);
+                gamestate = "waitingforstart";
                 break;
         }
     }
@@ -131,37 +141,15 @@ public class Manager : Photon.MonoBehaviour
     {
         while (true)
         {
-            if (pendingChunks == 0 && gamestate != "generating")
+            if (pendingChunks == 0 && gamestate == "generating")
             {
                 foreach (PhotonPlayer player in PhotonNetwork.playerList)
                 {
-                    while (true)
-                    {
-                        int x = UnityEngine.Random.Range(0, levelWidth - 1);
-                        int y = UnityEngine.Random.Range(0, levelHeight - 1);
-                        if (!spawns.Contains(tiles[x, y]))
-                        {
-                            spawns.Add(tiles[x, y]);
-                            break;
-                        }
-                    }
+                    int x = UnityEngine.Random.Range(0, levelWidth-1);
+                    int y = UnityEngine.Random.Range(0, levelHeight-1);
+                    photonView.RPC("GetSpawn", player, new Vector2(x, y));
                 }
-                int count = 0;
-                foreach (Tile tile in spawns)
-                {
-                    foreach (Tile anothertile in spawns)
-                    {
-                        if (Vector2.Distance(new Vector2(tile.x, tile.y), new Vector2(anothertile.x, anothertile.y)) >= levelWidth / 10)
-                            count++;
-                    }
-                }
-                if (count == spawns.Count)
-                    break;
-                yield return null;
-            }
-            for (int i = 0; i < PhotonNetwork.playerList.Length - 1; i++)
-            {
-                photonView.RPC("GetSpawn", PhotonNetwork.playerList[i], new Vector2(spawns[i].x, spawns[i].y));
+                break;
             }
             yield return null;
         }
@@ -171,6 +159,7 @@ public class Manager : Photon.MonoBehaviour
     void GetSpawn(Vector2 spawn)
     {
         spawnCoordinates = spawn;
+        gamestate = "spawn";
     }
 
     IEnumerator Neighbours()
