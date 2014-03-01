@@ -22,6 +22,7 @@ public class Manager : Photon.MonoBehaviour
     Vector2 spawnCoordinates;
     List<Tile> spawns = new List<Tile>();
     GameObject levelGeometry;
+    List<Unit> units;
 
     void Start()
     {
@@ -31,6 +32,7 @@ public class Manager : Photon.MonoBehaviour
         spawnCoordinates = new Vector2();
         levelGeometry = new GameObject("levelGeometry");
         levelGeometry.transform.position = Vector3.zero;
+        units = new List<Unit>();
     }
 
     void OnGUI()
@@ -85,7 +87,7 @@ public class Manager : Photon.MonoBehaviour
                 }
                 else
                     if (GUILayout.Button("Ready!", GUILayout.Width(640), GUILayout.Height(80)))
-                        photonView.RPC("PlayerReadyChange", PhotonTargets.All, PhotonNetwork.player);
+                        photonView.RPC("PlayerReadyChange", PhotonTargets.MasterClient, PhotonNetwork.player);
                 GUILayout.EndArea();
                 break;
             case "game":
@@ -110,6 +112,7 @@ public class Manager : Photon.MonoBehaviour
             case "start":
                 if (readPlayers.Count == PhotonNetwork.playerList.Length)
                 {
+                    readPlayers = new List<PhotonPlayer>();
                     gamestate = "generating";
                     guistate = "generating";
                     string[] data = Generate(levelWidth, levelHeight);
@@ -133,8 +136,24 @@ public class Manager : Photon.MonoBehaviour
             case "spawn":
                 PhotonNetwork.Instantiate("Settler", tiles[(int)spawnCoordinates.x, (int)spawnCoordinates.y].gameObject.transform.position, Quaternion.identity, 0);
                 gamestate = "waitingforstart";
+                photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
+                break;
+            case "waitingforstart":
+                if (PhotonNetwork.isMasterClient)
+                {
+                    if (readPlayers.Count == PhotonNetwork.playerList.Length)
+                    {
+                        photonView.RPC("StartTurn", PhotonTargets.All);
+                    }
+                }
                 break;
         }
+    }
+
+    [RPC]
+    void StartTurn()
+    {
+
     }
 
     IEnumerator RandomSpawns()

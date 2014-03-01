@@ -27,4 +27,5 @@ MonoBehaviour:
   - GetChunkAmount
   - GetSpawn
   - PlayerReadyChange
+  - StartTurn
   DisableAutoOpenWizard: 0

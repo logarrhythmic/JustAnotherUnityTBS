@@ -1,15 +1,9 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class Unit : MonoBehaviour {
-
-	// Use this for initialization
-	void Start () {
-	
-	}
-	
-	// Update is called once per frame
-	void Update () {
-	
-	}
+public class Unit : MonoBehaviour 
+{
+    public int maxmoves, movesleft;
+    public int hp, range, damage;
+    public int price;
 }
