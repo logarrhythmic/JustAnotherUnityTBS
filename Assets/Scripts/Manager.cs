@@ -43,26 +43,46 @@ public class Manager : Photon.MonoBehaviour
             case "start":
                 break;
             case "readycheck":
-                GUI.Label(new Rect(0,0,1280,40),"The Game");
-                GUI.Box(new Rect(0,40,640,380), "Players");
+                GUI.Label(new Rect(0, 0, 1280, 40), "The Game");
+                GUI.Box(new Rect(0, 40, 640, 380), "Players");
                 GUILayout.BeginArea(new Rect(0, 40 + 32, 640, 348));
                 foreach (PhotonPlayer player in PhotonNetwork.playerList)
                 {
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(20);
-                    GUILayout.Label(player.name, GUILayout.Width(125));
+                    if (player == PhotonNetwork.player)
+                    {
+                        string str = player.name;
+                        if (str == "")
+                            str = "Change this";
+                        str = GUILayout.TextField(str, GUILayout.Width(125));
+                        player.name = str;
+                    }
+                    else
+                        if (player.name == "")
+                            GUILayout.Label("no name", GUILayout.Width(125));
+                        else
+                            GUILayout.Label(player.name, GUILayout.Width(125));
                     // civilization here
                     GUILayout.Space(125);
                     if (readPlayers.Contains(player))
-                        GUILayout.Label("Ready", GUILayout.Width(70));
+                        GUILayout.Label("Ready", GUILayout.Width(75));
                     else
-                        GUILayout.Label("Not ready", GUILayout.Width(70));
+                        GUILayout.Label("Not ready", GUILayout.Width(75));
                     GUILayout.EndHorizontal();
                 }
                 GUILayout.EndArea();
-                GUI.Box(new Rect(0,420,640,300), "");
-                GUI.Box(new Rect(640,40,640,600),"Game information");
-                GUI.Box(new Rect(640,640,640,80),"");
+                GUI.Box(new Rect(0, 420, 640, 300), "");
+                GUI.Box(new Rect(640, 40, 640, 600), "Game information");
+                GUI.Box(new Rect(640, 640, 640, 80), "");
+                GUILayout.BeginArea(new Rect(640,640,640,80));
+                if (readPlayers.Contains(PhotonNetwork.player))
+                    if (GUILayout.Button("Not ready!"))
+                        photonView.RPC("Ready", PhotonNetwork.player);
+                else
+                    if(GUILayout.Button("Ready!"))
+                        photonView.RPC("Ready", PhotonNetwork.player);
+                GUILayout.EndArea();
                 break;
             case "game":
                 GUI.Box(new Rect(0, 0, 1280, 40), "");
