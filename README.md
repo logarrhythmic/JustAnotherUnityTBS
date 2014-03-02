@@ -5,4 +5,4 @@ An open Unity-made turn based strategy game, following the footsteps of Civiliza
 
 See the Wiki for general instructions, builds and stuff and the issues section for things that we need.
 
-Please mention it if you use it.
+Please mention it if you use it. Or even if you don't.
