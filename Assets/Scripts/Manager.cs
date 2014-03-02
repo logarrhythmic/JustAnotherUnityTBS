@@ -38,7 +38,7 @@ public class Manager : Photon.MonoBehaviour
     void Start()
     {
         Application.runInBackground = true;
-        PhotonNetwork.ConnectUsingSettings("1.1");
+        PhotonNetwork.ConnectUsingSettings("1.0");
         readPlayers = new List<PhotonPlayer>();
         spawnCoordinates = new Vector2();
         levelGeometry = new GameObject("levelGeometry");
@@ -227,6 +227,7 @@ public class Manager : Photon.MonoBehaviour
             case "prestartturn":
                 if (PhotonNetwork.isMasterClient)
                 {
+                    Debug.Log(readPlayers.Count);
                     if (readPlayers.Count == PhotonNetwork.playerList.Length)
                     {
                         readPlayers = new List<PhotonPlayer>();
@@ -256,6 +257,7 @@ public class Manager : Photon.MonoBehaviour
                 }
                 if (PhotonNetwork.isMasterClient && readPlayers.Count == PhotonNetwork.playerList.Length)
                 {
+                    readPlayers.Clear();
                     photonView.RPC("PreStartTurn", PhotonTargets.All);
                 }
                 break;
@@ -312,6 +314,7 @@ public class Manager : Photon.MonoBehaviour
                 tasks.Add(new Task(Task.taskType.building, city));
             }
         }
+        Debug.Log("asd");
         photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
     }
 
@@ -485,9 +488,16 @@ public class Manager : Photon.MonoBehaviour
     [RPC]
     void PlayerReadyChange(PhotonPlayer player)
     {
+
         if (readPlayers.Contains(player))
+        {
             readPlayers.Remove(player);
+            Debug.Log("remove");
+        }
         else
+        {
             readPlayers.Add(player);
+            Debug.Log("add");
+        }
     }
 }
