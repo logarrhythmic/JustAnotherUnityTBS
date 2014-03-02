@@ -28,4 +28,5 @@ MonoBehaviour:
   - GetSpawn
   - PlayerReadyChange
   - StartTurn
+  - PreStartTurn
   DisableAutoOpenWizard: 0

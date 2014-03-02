@@ -1,15 +1,11 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
-public class City : MonoBehaviour {
-
-	// Use this for initialization
-	void Start () {
-	
-	}
-	
-	// Update is called once per frame
-	void Update () {
-	
-	}
+public class City : MonoBehaviour
+{
+    public int production;
+    public bool productionReady;
+    public List<Building> buildings = new List<Building>();
+    public string name = "New City";
 }

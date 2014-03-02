@@ -7,23 +7,33 @@ using System.Collections.Generic;
 public class Manager : Photon.MonoBehaviour
 {
     // player stats
-    public int science, gold, happiness, goldenage, culture;
     public enum civilization { Greeks, Egyptians };
 
     public Tile[,] tiles;
+
     public float tileGap, rowGap, tileWidth;
-    public bool ready = false;
     public float resoWidth = 1280, resoHeight = 720;
+    public float zoomSpeed = 0;
+
     public string gamestate = "connecting", guistate = "connecting";
+
     public int levelWidth = 50, levelHeight = 50;
-    public List<PhotonPlayer> readPlayers;
+    public int science, gold, happiness, goldenage, culture;
+    public int zoomMin, zoomMax;
 
     int pendingChunks = 0;
     Vector2 spawnCoordinates;
     List<Tile> spawns = new List<Tile>();
     GameObject levelGeometry;
-    List<Unit> units;
+
+    public List<City> cities;
+    public List<Unit> units;
+    public List<Task> tasks;
+    List<PhotonPlayer> readPlayers;
+
     Texture2D hostIcon;
+
+    Unit selectedUnit;
 
     void Start()
     {
@@ -34,7 +44,10 @@ public class Manager : Photon.MonoBehaviour
         levelGeometry = new GameObject("levelGeometry");
         levelGeometry.transform.position = Vector3.zero;
         units = new List<Unit>();
-        hostIcon = Resources.Load("Images/host") as Texture2D ;
+        hostIcon = Resources.Load("Images/host") as Texture2D;
+        tasks = new List<Task>();
+        cities = new List<City>();
+        selectedUnit = null;
     }
 
     void OnGUI()
@@ -70,7 +83,6 @@ public class Manager : Photon.MonoBehaviour
                             GUILayout.Label("no name", GUILayout.Width(125));
                         else
                             GUILayout.Label(player.name, GUILayout.Width(125));
-                    // civilization here
                     GUILayout.Space(125);
                     if (readPlayers.Contains(player))
                         GUILayout.Label("Ready", GUILayout.Width(75));
@@ -101,13 +113,62 @@ public class Manager : Photon.MonoBehaviour
                 GUILayout.BeginVertical();
                 GUILayout.EndVertical();
                 GUILayout.EndArea();
+                GUILayout.BeginArea(new Rect(1200, 40, 80, 640));
+                foreach (Task task in tasks)
+                {
+                    if (GUILayout.Button(new GUIContent(task.image, task.type.ToString()), GUILayout.Width(80), GUILayout.Height(80)))
+                    {
+                        DoTask(task);
+                    }
+                }
+                GUILayout.EndArea();
+                GUILayout.BeginArea(new Rect(0, 500, 220, 220));
+                if (selectedUnit != null)
+                {
+                    GUILayout.BeginVertical();
+                    GUILayout.Label(selectedUnit.name, GUILayout.Width(220));
+                    GUILayout.Label(selectedUnit.icon);
+                    GUILayout.EndVertical();
+                }
+                GUILayout.EndArea();
+                GUILayout.BeginArea(new Rect(220, 500, 220, 220));
+                if (selectedUnit != null)
+                {
+                    foreach (Action action in selectedUnit.actions)
+                    {
+                        if (GUILayout.Button(new GUIContent(action.icon, action.tooltip == "" ? "" : action.tooltip), GUILayout.Width(50), GUILayout.Height(50)))
+                        {
+                            switch (action.type)
+                            {
+                                case Action.actionType.move:
+                                    selectedUnit.Move();
+                                    break;
+                                case Action.actionType.settle:
+                                    selectedUnit.Settle(this);
+                                    break;
+                            }
+                        }
+                    }
+                }
+                GUILayout.EndArea();
                 break;
-            case "generating":
+            case "menu":
+                GUI.Box(new Rect(550, 300, 180, 120), "Menu");
                 break;
             default:
                 GUI.Label(new Rect(600, 700, 80, 20), "Loading....");
                 break;
         }
+    }
+
+    void SelectUnit(Unit unit)
+    {
+        selectedUnit = unit;
+    }
+
+    void UnselectUnit(Unit unit)
+    {
+        selectedUnit = null;
     }
 
     void Update()
@@ -139,7 +200,9 @@ public class Manager : Photon.MonoBehaviour
                 }
                 break;
             case "spawn":
-                PhotonNetwork.Instantiate("Settler", tiles[(int)spawnCoordinates.x, (int)spawnCoordinates.y].gameObject.transform.position, Quaternion.identity, 0);
+                GameObject go = PhotonNetwork.Instantiate("Settler", tiles[(int)spawnCoordinates.x, (int)spawnCoordinates.y].gameObject.transform.position, Quaternion.identity, 0);
+                StartCoroutine("CameraFocus", go.transform.position);
+                units.Add(go.GetComponent<Unit>());
                 gamestate = "waitingforstart";
                 photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
                 break;
@@ -148,17 +211,85 @@ public class Manager : Photon.MonoBehaviour
                 {
                     if (readPlayers.Count == PhotonNetwork.playerList.Length)
                     {
-                        photonView.RPC("StartTurn", PhotonTargets.All);
+                        readPlayers = new List<PhotonPlayer>();
+                        photonView.RPC("PreStartTurn", PhotonTargets.All);
                     }
                 }
                 break;
+            case "prestartturn":
+                if (PhotonNetwork.isMasterClient)
+                {
+                    if (readPlayers.Count == PhotonNetwork.playerList.Length)
+                    {
+                        photonView.RPC("StartTurn", PhotonTargets.All);
+                        readPlayers = new List<PhotonPlayer>();
+                    }
+                }
+                break;
+            case "game":
+                bool dontfuckthekeyboard = true;
+                if (Input.GetKeyDown(KeyCode.Escape) && guistate == "game" && dontfuckthekeyboard)
+                {
+                    guistate = "menu";
+                    dontfuckthekeyboard = false;
+                }
+                if (Input.GetKeyDown(KeyCode.Escape) && guistate == "menu" && dontfuckthekeyboard)
+                {
+                    guistate = "game";
+                    dontfuckthekeyboard = false;
+                }
+                if (Input.GetAxis("Mouse ScrollWheel") > 0)
+                {
+                    Camera.main.transform.position += Vector3.up * zoomSpeed * Input.GetAxis("Mouse ScrollWheel");
+                }
+                if (Input.GetAxis("Mouse ScrollWheel") < 0)
+                {
+                    Camera.main.transform.position += Vector3.up * zoomSpeed * Input.GetAxis("Mouse ScrollWheel");
+                }
+                break;
+        }
+    }
+
+    void DoTask(Task task)
+    {
+        switch (task.type)
+        {
+            case Task.taskType.movement:
+                StartCoroutine("CameraFocus", task.unitTarget.gameObject.transform.position);
+                selectedUnit = task.unitTarget;
+                break;
+        }
+    }
+
+    IEnumerator CameraFocus(Vector3 pos)
+    {
+        while (Vector2.Distance(new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.z), new Vector2(pos.x, pos.z)) >= 1)
+        {
+            Camera.main.transform.position = Vector3.Lerp(Camera.main.transform.position, new Vector3(pos.x, Camera.main.transform.position.y, pos.z), 0.5f);
+            yield return null;
         }
     }
 
     [RPC]
     void StartTurn()
     {
+        gamestate = "game";
+        guistate = "game";
+    }
 
+    [RPC]
+    void PreStartTurn()
+    {
+        gamestate = "prestartturn";
+        foreach (Unit unit in units)
+        {
+            unit.newTurn();
+            if (!unit.fortified && !unit.sleep)
+            {
+                tasks.Add(new Task(Task.taskType.movement, unit, unit.icon));
+            }
+        }
+        photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
     }
 
     IEnumerator RandomSpawns()
@@ -169,8 +300,8 @@ public class Manager : Photon.MonoBehaviour
             {
                 foreach (PhotonPlayer player in PhotonNetwork.playerList)
                 {
-                    int x = UnityEngine.Random.Range(0, levelWidth-1);
-                    int y = UnityEngine.Random.Range(0, levelHeight-1);
+                    int x = UnityEngine.Random.Range(0, levelWidth - 1);
+                    int y = UnityEngine.Random.Range(0, levelHeight - 1);
                     photonView.RPC("GetSpawn", player, new Vector2(x, y));
                 }
                 break;

@@ -214,7 +214,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1880807472}
   m_LocalRotation: {x: .707106829, y: 0, z: 0, w: .707106829}
-  m_LocalPosition: {x: 50, y: 100, z: 50}
+  m_LocalPosition: {x: 50, y: 10, z: 50}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -249,18 +249,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 62f90b06e4cd4ea4a8a9479ef9840bac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  tileGap: 0
+  rowGap: 1
+  tileWidth: 1.75
+  resoWidth: 1280
+  resoHeight: 720
+  zoomSpeed: 1
+  gamestate: start
+  guistate: start
+  levelWidth: 50
+  levelHeight: 50
   science: 0
   gold: 0
   happiness: 0
   goldenage: 0
   culture: 0
-  tileGap: .100000001
-  rowGap: 1
-  tileWidth: 2
-  ready: 0
-  resoWidth: 1280
-  resoHeight: 720
-  gamestate: start
-  guistate: start
-  levelWidth: 50
-  levelHeight: 50
+  zoomMin: 0
+  zoomMax: 0
+  cities: []
+  units: []
