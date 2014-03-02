@@ -3,7 +3,7 @@ using System.Collections;
 
 public class Task
 {
-    public enum taskType {movement, research, culture, religion, citystate };
+    public enum taskType {movement, research, culture, religion, citystate, building };
     public taskType type;
     public Unit unitTarget;
     public City cityTarget;
@@ -15,5 +15,12 @@ public class Task
         unitTarget = target;
         type = tasktype;
         image = unitImage;
+    }
+
+    public Task(taskType tasktype, City target)
+    {
+        cityTarget = target;
+        type = tasktype;
+        image = Resources.Load("Images/building") as Texture2D;
     }
 }

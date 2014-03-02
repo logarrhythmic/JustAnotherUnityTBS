@@ -8,4 +8,11 @@ public class City : MonoBehaviour
     public bool productionReady;
     public List<Building> buildings = new List<Building>();
     public string name = "New City";
+
+    int productionPerTurn = 0;
+
+    public void newTurn()
+    {
+
+    }
 }

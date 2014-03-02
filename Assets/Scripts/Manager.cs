@@ -38,7 +38,7 @@ public class Manager : Photon.MonoBehaviour
     void Start()
     {
         Application.runInBackground = true;
-        PhotonNetwork.ConnectUsingSettings("1.0");
+        PhotonNetwork.ConnectUsingSettings("1.1");
         readPlayers = new List<PhotonPlayer>();
         spawnCoordinates = new Vector2();
         levelGeometry = new GameObject("levelGeometry");
@@ -108,6 +108,14 @@ public class Manager : Photon.MonoBehaviour
                 GUILayout.EndArea();
                 break;
             case "game":
+                if (tasks.Count == 0)
+                {
+                    if (GUILayout.Button("Next turn"))
+                    {
+                        photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
+                        guistate = "waiting";
+                    }
+                }
                 GUI.Box(new Rect(0, 0, 1280, 40), "");
                 GUILayout.BeginArea(new Rect(0, 0, 1280, 32));
                 GUILayout.BeginVertical();
@@ -221,8 +229,8 @@ public class Manager : Photon.MonoBehaviour
                 {
                     if (readPlayers.Count == PhotonNetwork.playerList.Length)
                     {
-                        photonView.RPC("StartTurn", PhotonTargets.All);
                         readPlayers = new List<PhotonPlayer>();
+                        photonView.RPC("StartTurn", PhotonTargets.All);
                     }
                 }
                 break;
@@ -246,6 +254,10 @@ public class Manager : Photon.MonoBehaviour
                 {
                     Camera.main.transform.position += Vector3.up * zoomSpeed * Input.GetAxis("Mouse ScrollWheel");
                 }
+                if (PhotonNetwork.isMasterClient && readPlayers.Count == PhotonNetwork.playerList.Length)
+                {
+                    photonView.RPC("PreStartTurn", PhotonTargets.All);
+                }
                 break;
         }
     }
@@ -255,8 +267,11 @@ public class Manager : Photon.MonoBehaviour
         switch (task.type)
         {
             case Task.taskType.movement:
-                StartCoroutine("CameraFocus", task.unitTarget.gameObject.transform.position);
-                selectedUnit = task.unitTarget;
+                if (task != null && task.unitTarget != null)
+                {
+                    StartCoroutine("CameraFocus", task.unitTarget.gameObject.transform.position);
+                    selectedUnit = task.unitTarget;
+                }
                 break;
         }
     }
@@ -287,6 +302,14 @@ public class Manager : Photon.MonoBehaviour
             if (!unit.fortified && !unit.sleep)
             {
                 tasks.Add(new Task(Task.taskType.movement, unit, unit.icon));
+            }
+        }
+        foreach (City city in cities)
+        {
+            city.newTurn();
+            if (city.productionReady)
+            {
+                tasks.Add(new Task(Task.taskType.building, city));
             }
         }
         photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
