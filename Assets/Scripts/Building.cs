@@ -1,15 +1,15 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class Building : MonoBehaviour {
+public class Building
+{
+    public Texture2D icon;
+    public string buildingName = "New Building";
+    public int price, spent;
+    public int production, gold, food, faith, culture, science, happiness;
 
-	// Use this for initialization
-	void Start () {
-	
-	}
-	
-	// Update is called once per frame
-	void Update () {
-	
-	}
+    public Building(Texture2D _icon, int _price)
+    {
+        price = _price;
+    }
 }

@@ -16,7 +16,7 @@ GameObject:
   - 114: {fileID: 11400002}
   m_Layer: 0
   m_Name: tile
-  m_TagString: Untagged
+  m_TagString: Tile
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -107,6 +107,7 @@ MonoBehaviour:
   faith: 0
   science: 0
   culture: 0
+  neighbours: []
 --- !u!114 &11400002
 MonoBehaviour:
   m_ObjectHideFlags: 1

@@ -268,3 +268,4 @@ MonoBehaviour:
   zoomMax: 0
   cities: []
   units: []
+  building: 0

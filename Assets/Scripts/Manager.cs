@@ -34,6 +34,13 @@ public class Manager : Photon.MonoBehaviour
     Texture2D hostIcon;
 
     Unit selectedUnit;
+    City selectedCity;
+    public Task currentTask;
+
+    bool moving = false;
+    public bool building = false;
+    List<Tile> movableTiles = new List<Tile>();
+    public List<Building> availableBuildings = new List<Building>();
 
     void Start()
     {
@@ -48,6 +55,111 @@ public class Manager : Photon.MonoBehaviour
         tasks = new List<Task>();
         cities = new List<City>();
         selectedUnit = null;
+
+        //hardcoded monument
+        availableBuildings.Add(new Building((Texture2D)Resources.Load("Images/monument"), 100));
+    }
+
+    void Update()
+    {
+        switch (gamestate)
+        {
+            case "start":
+                if (readPlayers.Count == PhotonNetwork.playerList.Length)
+                {
+                    readPlayers = new List<PhotonPlayer>();
+                    gamestate = "generating";
+                    guistate = "generating";
+                    string[] data = Generate(levelWidth, levelHeight);
+                    photonView.RPC("GetChunkAmount", PhotonTargets.All, levelWidth, levelHeight);
+                    for (int i = 0; i < levelHeight; i++)
+                    {
+                        string[] newdata = new string[levelWidth];
+                        Array.Copy(data, i * levelWidth, newdata, 0, levelWidth);
+                        photonView.RPC("CallLevel", PhotonTargets.All, newdata);
+                    }
+                }
+                break;
+            case "generating":
+                if (gamestate == "generating" && pendingChunks == 0)
+                {
+                    Neighbours();
+                    StartCoroutine("RandomSpawns");
+                    guistate = "game";
+                }
+                break;
+            case "spawn":
+                GameObject go = PhotonNetwork.Instantiate("Settler", tiles[(int)spawnCoordinates.x, (int)spawnCoordinates.y].gameObject.transform.position, Quaternion.identity, 0);
+                go.GetComponent<Unit>().currentTile = tiles[(int)spawnCoordinates.x, (int)spawnCoordinates.y];
+                StartCoroutine("CameraFocus", go.transform.position);
+                units.Add(go.GetComponent<Unit>());
+                gamestate = "waitingforstart";
+                photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
+                break;
+            case "waitingforstart":
+                if (PhotonNetwork.isMasterClient)
+                {
+                    if (readPlayers.Count == PhotonNetwork.playerList.Length)
+                    {
+                        readPlayers = new List<PhotonPlayer>();
+                        photonView.RPC("PreStartTurn", PhotonTargets.All);
+                    }
+                }
+                break;
+            case "prestartturn":
+                if (PhotonNetwork.isMasterClient)
+                {
+                    if (readPlayers.Count == PhotonNetwork.playerList.Length)
+                    {
+                        readPlayers = new List<PhotonPlayer>();
+                        photonView.RPC("StartTurn", PhotonTargets.All);
+                    }
+                }
+                break;
+            case "game":
+                bool dontfuckthekeyboard = true;
+                if (Input.GetKeyDown(KeyCode.Escape) && guistate == "game" && dontfuckthekeyboard)
+                {
+                    guistate = "menu";
+                    dontfuckthekeyboard = false;
+                }
+                if (Input.GetKeyDown(KeyCode.Escape) && guistate == "menu" && dontfuckthekeyboard)
+                {
+                    guistate = "game";
+                    dontfuckthekeyboard = false;
+                }
+                if (Input.GetAxis("Mouse ScrollWheel") > 0)
+                {
+                    Camera.main.transform.position += Vector3.up * zoomSpeed * Input.GetAxis("Mouse ScrollWheel");
+                }
+                if (Input.GetAxis("Mouse ScrollWheel") < 0)
+                {
+                    Camera.main.transform.position += Vector3.up * zoomSpeed * Input.GetAxis("Mouse ScrollWheel");
+                }
+                if (PhotonNetwork.isMasterClient && readPlayers.Count == PhotonNetwork.playerList.Length)
+                {
+                    readPlayers.Clear();
+                    photonView.RPC("PreStartTurn", PhotonTargets.All);
+                }
+                if (moving && Input.GetMouseButton(0))
+                {
+                    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                    RaycastHit hit;
+                    if (Physics.Raycast(ray, out hit, Mathf.Infinity))
+                    {
+                        if (hit.transform.tag == "Tile")
+                        {
+                            if (movableTiles.Contains(hit.transform.GetComponent<Tile>()))
+                            {
+                                selectedUnit.Move(hit.transform.GetComponent<Tile>());
+                                moving = false;
+                                tasks.Remove(currentTask);
+                            }
+                        }
+                    }
+                }
+                break;
+        }
     }
 
     void OnGUI()
@@ -108,40 +220,35 @@ public class Manager : Photon.MonoBehaviour
                 GUILayout.EndArea();
                 break;
             case "game":
-                if (tasks.Count == 0)
-                {
-                    if (GUILayout.Button("Next turn"))
-                    {
-                        photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
-                        guistate = "waiting";
-                    }
-                }
                 GUI.Box(new Rect(0, 0, 1280, 40), "");
                 GUILayout.BeginArea(new Rect(0, 0, 1280, 32));
                 GUILayout.BeginVertical();
                 GUILayout.EndVertical();
                 GUILayout.EndArea();
                 GUILayout.BeginArea(new Rect(1200, 40, 80, 640));
-                foreach (Task task in tasks)
+                if (tasks.Count > 0)
                 {
-                    if (GUILayout.Button(new GUIContent(task.image, task.type.ToString()), GUILayout.Width(80), GUILayout.Height(80)))
+                    foreach (Task task in tasks)
                     {
-                        DoTask(task);
+                        if (task != null)
+                        {
+                            if (GUILayout.Button(new GUIContent(task.image, task.type.ToString()), GUILayout.Width(80), GUILayout.Height(80)))
+                            {
+                                DoTask(task);
+                            }
+                        }
                     }
                 }
                 GUILayout.EndArea();
-                GUILayout.BeginArea(new Rect(0, 500, 220, 220));
                 if (selectedUnit != null)
                 {
+                    GUILayout.BeginArea(new Rect(0, 500, 220, 220));
                     GUILayout.BeginVertical();
                     GUILayout.Label(selectedUnit.name, GUILayout.Width(220));
                     GUILayout.Label(selectedUnit.icon);
                     GUILayout.EndVertical();
-                }
-                GUILayout.EndArea();
-                GUILayout.BeginArea(new Rect(220, 500, 220, 220));
-                if (selectedUnit != null)
-                {
+                    GUILayout.EndArea();
+                    GUILayout.BeginArea(new Rect(220, 500, 220, 220));
                     foreach (Action action in selectedUnit.actions)
                     {
                         if (GUILayout.Button(new GUIContent(action.icon, action.tooltip == "" ? "" : action.tooltip), GUILayout.Width(50), GUILayout.Height(50)))
@@ -149,13 +256,39 @@ public class Manager : Photon.MonoBehaviour
                             switch (action.type)
                             {
                                 case Action.actionType.move:
-                                    selectedUnit.Move();
+                                    movableTiles = selectedUnit.currentTile.neighbours;
+                                    moving = true;
                                     break;
                                 case Action.actionType.settle:
                                     selectedUnit.Settle(this);
                                     break;
                             }
                         }
+                    }
+                    GUILayout.EndArea();
+                }
+                if (selectedCity != null && building)
+                {
+                    GUILayout.BeginArea(new Rect(0,40,320,460));
+                    GUILayout.BeginVertical();
+                    foreach (Building structure in selectedCity.availableBuildings)
+                    {
+                        if (GUILayout.Button(new GUIContent(structure.buildingName, structure.icon, structure.buildingName)))
+                        {
+                            selectedCity.Build(structure, this);
+                            building = false;
+                        }
+                    }
+                    GUILayout.EndArea();
+                    GUILayout.EndVertical();
+                }
+                GUILayout.BeginArea(new Rect(1200, 680, 80, 40));
+                if (tasks.Count == 0)
+                {
+                    if (GUILayout.Button("Next turn"))
+                    {
+                        photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
+                        guistate = "waiting";
                     }
                 }
                 GUILayout.EndArea();
@@ -179,93 +312,9 @@ public class Manager : Photon.MonoBehaviour
         selectedUnit = null;
     }
 
-    void Update()
-    {
-        switch (gamestate)
-        {
-            case "start":
-                if (readPlayers.Count == PhotonNetwork.playerList.Length)
-                {
-                    readPlayers = new List<PhotonPlayer>();
-                    gamestate = "generating";
-                    guistate = "generating";
-                    string[] data = Generate(levelWidth, levelHeight);
-                    photonView.RPC("GetChunkAmount", PhotonTargets.All, levelWidth, levelHeight);
-                    for (int i = 0; i < levelHeight; i++)
-                    {
-                        string[] newdata = new string[levelWidth];
-                        Array.Copy(data, i * levelWidth, newdata, 0, levelWidth);
-                        photonView.RPC("CallLevel", PhotonTargets.All, newdata);
-                    }
-                    StartCoroutine("RandomSpawns");
-                }
-                break;
-            case "generating":
-                if (gamestate == "generating" && pendingChunks == 0)
-                {
-                    StartCoroutine("Neighbours");
-                    guistate = "game";
-                }
-                break;
-            case "spawn":
-                GameObject go = PhotonNetwork.Instantiate("Settler", tiles[(int)spawnCoordinates.x, (int)spawnCoordinates.y].gameObject.transform.position, Quaternion.identity, 0);
-                StartCoroutine("CameraFocus", go.transform.position);
-                units.Add(go.GetComponent<Unit>());
-                gamestate = "waitingforstart";
-                photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
-                break;
-            case "waitingforstart":
-                if (PhotonNetwork.isMasterClient)
-                {
-                    if (readPlayers.Count == PhotonNetwork.playerList.Length)
-                    {
-                        readPlayers = new List<PhotonPlayer>();
-                        photonView.RPC("PreStartTurn", PhotonTargets.All);
-                    }
-                }
-                break;
-            case "prestartturn":
-                if (PhotonNetwork.isMasterClient)
-                {
-                    Debug.Log(readPlayers.Count);
-                    if (readPlayers.Count == PhotonNetwork.playerList.Length)
-                    {
-                        readPlayers = new List<PhotonPlayer>();
-                        photonView.RPC("StartTurn", PhotonTargets.All);
-                    }
-                }
-                break;
-            case "game":
-                bool dontfuckthekeyboard = true;
-                if (Input.GetKeyDown(KeyCode.Escape) && guistate == "game" && dontfuckthekeyboard)
-                {
-                    guistate = "menu";
-                    dontfuckthekeyboard = false;
-                }
-                if (Input.GetKeyDown(KeyCode.Escape) && guistate == "menu" && dontfuckthekeyboard)
-                {
-                    guistate = "game";
-                    dontfuckthekeyboard = false;
-                }
-                if (Input.GetAxis("Mouse ScrollWheel") > 0)
-                {
-                    Camera.main.transform.position += Vector3.up * zoomSpeed * Input.GetAxis("Mouse ScrollWheel");
-                }
-                if (Input.GetAxis("Mouse ScrollWheel") < 0)
-                {
-                    Camera.main.transform.position += Vector3.up * zoomSpeed * Input.GetAxis("Mouse ScrollWheel");
-                }
-                if (PhotonNetwork.isMasterClient && readPlayers.Count == PhotonNetwork.playerList.Length)
-                {
-                    readPlayers.Clear();
-                    photonView.RPC("PreStartTurn", PhotonTargets.All);
-                }
-                break;
-        }
-    }
-
     void DoTask(Task task)
     {
+        currentTask = task;
         switch (task.type)
         {
             case Task.taskType.movement:
@@ -273,6 +322,14 @@ public class Manager : Photon.MonoBehaviour
                 {
                     StartCoroutine("CameraFocus", task.unitTarget.gameObject.transform.position);
                     selectedUnit = task.unitTarget;
+                }
+                break;
+            case Task.taskType.building:
+                if (task != null && task.cityTarget != null)
+                {
+                    StartCoroutine("CameraFocus", task.cityTarget.gameObject.transform.position);
+                    selectedCity = task.cityTarget;
+                    building = true;
                 }
                 break;
         }
@@ -314,24 +371,16 @@ public class Manager : Photon.MonoBehaviour
                 tasks.Add(new Task(Task.taskType.building, city));
             }
         }
-        Debug.Log("asd");
         photonView.RPC("PlayerReadyChange", PhotonNetwork.masterClient, PhotonNetwork.player);
     }
 
     IEnumerator RandomSpawns()
     {
-        while (true)
+        foreach (PhotonPlayer player in PhotonNetwork.playerList)
         {
-            if (pendingChunks == 0 && gamestate == "generating")
-            {
-                foreach (PhotonPlayer player in PhotonNetwork.playerList)
-                {
-                    int x = UnityEngine.Random.Range(0, levelWidth - 1);
-                    int y = UnityEngine.Random.Range(0, levelHeight - 1);
-                    photonView.RPC("GetSpawn", player, new Vector2(x, y));
-                }
-                break;
-            }
+            int x = UnityEngine.Random.Range(0, levelWidth - 1);
+            int y = UnityEngine.Random.Range(0, levelHeight - 1);
+            photonView.RPC("GetSpawn", player, new Vector2(x, y));
             yield return null;
         }
     }
@@ -343,7 +392,7 @@ public class Manager : Photon.MonoBehaviour
         gamestate = "spawn";
     }
 
-    IEnumerator Neighbours()
+    void Neighbours()
     {
         for (int y = 0; y < tiles.GetLength(1); y++)
         {
@@ -375,7 +424,6 @@ public class Manager : Photon.MonoBehaviour
                 }
             }
         }
-        yield return null;
     }
 
     string[] Generate(int width, int height)
@@ -492,12 +540,10 @@ public class Manager : Photon.MonoBehaviour
         if (readPlayers.Contains(player))
         {
             readPlayers.Remove(player);
-            Debug.Log("remove");
         }
         else
         {
             readPlayers.Add(player);
-            Debug.Log("add");
         }
     }
 }
