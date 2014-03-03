@@ -158,6 +158,21 @@ public class Manager : Photon.MonoBehaviour
                         }
                     }
                 }
+                if(selectedUnit != null && Input.GetMouseButton(0))
+                {
+                    Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+                    RaycastHit hit;
+                    if (Physics.Raycast(ray, out hit, Mathf.Infinity))
+                    {
+                        if (hit.transform.gameObject.GetComponent<Unit>() != null)
+                        {
+                            if (hit.transform.GetComponent<Unit>() == selectedUnit)
+                            {
+                                selectedUnit = null;
+                            }
+                        }
+                    }
+                }
                 break;
         }
     }
