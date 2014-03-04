@@ -6,12 +6,15 @@ using System.Collections.Generic;
 
 public class Manager : Photon.MonoBehaviour
 {
+	public const float SQRT3 = 1.7320508075688772935274463415059f;
+
+
     // player stats
     public enum civilization { Greeks, Egyptians };
 
     public Tile[,] tiles;
 
-    public float tileGap, rowGap, tileWidth;
+    public float tileWidth;
     public float resoWidth = 1280, resoHeight = 720;
     public float zoomSpeed = 0;
 
@@ -409,34 +412,31 @@ public class Manager : Photon.MonoBehaviour
 
     void Neighbours()
     {
-        for (int y = 0; y < tiles.GetLength(1); y++)
+		int w = tiles.GetLength(0);
+		int h = tiles.GetLength(1);
+        for (int y = 0; y < h; y++)
         {
-            for (int x = 0; x < tiles.GetLength(0); x++)
+            for (int x = 0; x < w; x++)
             {
-                if (x - 1 >= 0 && y - 1 >= 0)
-                {
-                    tiles[x, y].neighbours.Add(tiles[x - 1, y - 1]);
-                }
-                if (y - 1 >= 0)
-                {
-                    tiles[x, y].neighbours.Add(tiles[x, y - 1]);
-                }
-                if (x - 1 >= 0)
-                {
-                    tiles[x, y].neighbours.Add(tiles[x - 1, y]);
-                }
-                if (x + 1 <= tiles.GetLength(0) - 1)
-                {
-                    tiles[x, y].neighbours.Add(tiles[x + 1, y]);
-                }
-                if (y - 1 >= tiles.GetLength(1) - 1 && x - 1 >= 0)
-                {
-                    tiles[x, y].neighbours.Add(tiles[y - 1, x - 1]);
-                }
-                if (y - 1 >= tiles.GetLength(1) - 1)
-                {
-                    tiles[x, y].neighbours.Add(tiles[y - 1, x]);
-                }
+				Tile t = tiles[x, y];
+				if (x>0){
+					t.neighbours.Add(tiles[x-1,y]);
+				}
+				if (x<w-1){
+					t.neighbours.Add(tiles[x+1,y]);
+				}
+				if (y>0){
+					if (x>=((y+1)%2))
+						t.neighbours.Add (tiles[x-((y+1)%2),y-1]);
+					if (x+(y%2)<w)
+						t.neighbours.Add (tiles[x+1-((y+1)%2),y-1]);
+				}
+				if (y<h-1){
+					if (x>=((y+1)%2))
+						t.neighbours.Add (tiles[x-((y+1)%2),y+1]);
+					if (x+(y%2)<w)
+						t.neighbours.Add (tiles[x+1-((y+1)%2),y+1]);
+				}
             }
         }
     }
@@ -540,7 +540,7 @@ public class Manager : Photon.MonoBehaviour
                 }
             }
             tiles[t.x, t.y] = t;
-            go.transform.position = new Vector3(tileWidth * t.x + rowGap * t.y % 2, 0, tileWidth * t.y);
+            go.transform.position = new Vector3(tileWidth * t.x + tileWidth * 0.5f * (t.y % 2), 0, tileWidth * SQRT3/2f * t.y);
             go.transform.parent = levelGeometry.transform;
             if (i % 10 == 0)
                 yield return null;
